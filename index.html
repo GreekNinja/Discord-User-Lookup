@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord User Lookup</title>
+    <style>
+        /* Light & Dark Mode */
+        :root {
+            --bg-color: #1e1e2e;
+            --text-color: #ffffff;
+            --input-bg: #2f3136;
+            --border-color: #7289da;
+            --btn-bg: #7289da;
+            --btn-hover: #5865f2;
+            --card-bg: #2f3136;
+            --error-bg: #ff5555;
+        }
+
+        .light-mode {
+            --bg-color: #ffffff;
+            --text-color: #000000;
+            --input-bg: #f0f0f0;
+            --border-color: #5865f2;
+            --btn-bg: #5865f2;
+            --btn-hover: #7289da;
+            --card-bg: #f9f9f9;
+            --error-bg: #ff5555;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            transition: 0.3s ease-in-out;
+        }
+
+        h2 { margin-top: 20px; font-size: 28px; }
+
+        /* Mode Switch */
+        .mode-switch {
+            margin: 10px;
+            padding: 10px;
+            cursor: pointer;
+            background: var(--btn-bg);
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        /* Input & Button */
+        input, button {
+            padding: 12px;
+            margin: 5px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            font-size: 16px;
+        }
+
+        button {
+            background: var(--btn-bg);
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover { background: var(--btn-hover); }
+
+        /* Info Display */
+        .info-container {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            background: var(--card-bg);
+            display: none;
+        }
+
+        .avatar {
+            border-radius: 50%;
+            width: 100px;
+            height: 100px;
+            border: 3px solid var(--border-color);
+        }
+
+        .error-message {
+            margin-top: 10px;
+            padding: 10px;
+            background: var(--error-bg);
+            color: white;
+            border-radius: 8px;
+            display: none;
+        }
+
+        /* Copyable Token UI */
+        .token-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .token {
+            font-family: monospace;
+            background: var(--input-bg);
+            padding: 8px;
+            border-radius: 5px;
+            color: #ffcc00;
+            user-select: all;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .token:hover { background: var(--btn-hover); }
+
+        .copy-message {
+            margin-top: 5px;
+            font-size: 14px;
+            color: #32cd32;
+            display: none;
+            animation: fadeOut 2s ease-in-out;
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        .download-container {
+            margin-top: 10px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <button class="mode-switch" onclick="toggleMode()">🌗 Switch Mode</button>
+    
+    <h2>🔎 Discord User Lookup</h2>
+
+    <div class="input-container">
+        <input type="text" id="discordID" placeholder="Enter Discord User ID">
+        <button onclick="lookupUser()">Lookup</button>
+    </div>
+
+    <div class="error-message" id="errorMessage"></div>
+
+    <div class="info-container" id="infoContainer"></div>
+
+    <script>
+        function toggleMode() {
+            document.body.classList.toggle("light-mode");
+        }
+
+        function encodeID(userID) {
+            return btoa(userID); // Base64 encode the ID
+        }
+
+        async function fetchData(url) {
+            try {
+                let response = await fetch(url);
+                return await response.json();
+            } catch (error) {
+                return { error: "API Error" };
+            }
+        }
+
+        async function lookupUser() {
+            let discordID = document.getElementById("discordID").value;
+            let infoContainer = document.getElementById("infoContainer");
+            let errorMessageDiv = document.getElementById("errorMessage");
+
+            infoContainer.style.display = "none";
+            errorMessageDiv.style.display = "none";
+
+            if (!discordID) {
+                errorMessageDiv.innerHTML = "⚠️ Please enter a valid Discord User ID.";
+                errorMessageDiv.style.display = "block";
+                return;
+            }
+
+            let apiURL = `https://discordlookup.mesalytic.moe/v1/user/${discordID}`;
+
+            let data = await fetchData(apiURL);
+            if (data.error || data.message) {
+                errorMessageDiv.innerHTML = "❌ User not found! Please check the ID.";
+                errorMessageDiv.style.display = "block";
+                return;
+            }
+
+            let token = encodeID(data.id);
+            let avatarURL = data.avatar?.link || "https://cdn.discordapp.com/embed/avatars/0.png";
+            let avatarDownloadURL = avatarURL.split("?")[0] + "?size=1024";
+            let bannerDownloadURL = data.banner?.link ? data.banner.link.split("?")[0] + "?size=2048" : null;
+
+            let bannerHTML = data.banner?.link
+                ? `<img src="${data.banner.link}" width="300" alt="User Banner">
+                   <div class="download-container">
+                      <a href="${bannerDownloadURL}" target="_blank">
+                          <button>📥 Open Banner in New Tab</button>
+                      </a>
+                   </div>`
+                : `<p>No Banner</p>`;
+
+            let badgesHTML = data.badges.length > 0
+                ? `<p>🎖️ Badges: ${data.badges.join(", ")}</p>`
+                : `<p>No Badges</p>`;
+
+            let createdAt = new Date(data.created_at).toLocaleString();
+
+            infoContainer.innerHTML = `
+                <h3>${data.username}#${data.raw.discriminator}</h3>
+                <img class="avatar" src="${avatarURL}">
+                <div class="download-container">
+                    <a href="${avatarDownloadURL}" target="_blank">
+                        <button>📥 Open Avatar in New Tab</button>
+                    </a>
+                </div>
+                <p>🆔 User ID: ${data.id}</p>
+                <p>📅 Account Created: ${createdAt}</p>
+                ${badgesHTML}
+                ${bannerHTML}
+                <div class="token-container">
+                    <span class="token" onclick="copyToken('${token}')">${token}</span>
+                    <span id="copyMessage" class="copy-message">✅ Token copied!</span>
+                </div>
+            `;
+
+            infoContainer.style.display = "block";
+        }
+
+        function copyToken(token) {
+            navigator.clipboard.writeText(token);
+            let copyMessage = document.getElementById("copyMessage");
+            copyMessage.style.display = "block";
+            setTimeout(() => {
+                copyMessage.style.display = "none";
+            }, 2000);
+        }
+    </script>
+    
+
+</body>
+</html>
